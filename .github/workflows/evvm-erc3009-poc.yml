@@ -9,6 +9,14 @@ on:
       - "test/**"
       - "foundry.toml"
       - ".github/workflows/evvm-erc3009-poc.yml"
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "src/**"
+      - "test/**"
+      - "foundry.toml"
+      - ".github/workflows/evvm-erc3009-poc.yml"
   workflow_dispatch:
 
 permissions:
