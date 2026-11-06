@@ -64,7 +64,7 @@ forge test -vvv
 
 GitHub Actions runs the Foundry suite on pushes to `main`. The workflow can also be started manually from the Actions tab.
 
-<badge color="success">CI passed</badge> The first run in this repository compiled with Solidity 0.8.24 and passed **5 tests, 0 failed**: [view GitHub Actions run](https://github.com/0xSix9/evvm-erc3009-gasless-deposit-poc/actions/runs/42301177592).
+**CI: PASS** The first run in this repository compiled with Solidity 0.8.24 and passed **5 tests, 0 failed**: [view GitHub Actions run](https://github.com/0xSix9/evvm-erc3009-gasless-deposit-poc/actions/runs/42301177592).
 
 ### Test coverage
 
