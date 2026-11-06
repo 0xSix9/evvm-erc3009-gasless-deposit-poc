@@ -56,7 +56,7 @@ I prepared a non-production reference implementation and Foundry tests here:
 
 [ERC-3009 gasless-deposit PoC branch](https://github.com/0xSix9/evvm-erc3009-gasless-deposit-poc)
 
-The Foundry tests currently pass in GitHub Actions: 5 passed, 0 failed (Solidity 0.8.24). They cover fee splitting, replay protection, executor binding, amount tampering, non-staker rejection, unsupported-token rejection, and expired authorizations. CI run: https://github.com/0xSix9/evvm-erc3009-gasless-deposit-poc/actions.
+The Foundry tests currently pass in GitHub Actions: 5 passed, 0 failed (Solidity 0.8.24). They cover fee splitting, replay protection, executor binding, amount tampering, non-staker rejection, unsupported-token rejection, and expired authorizations. CI run: https://github.com/0xSix9/evvm-erc3009-gasless-deposit-poc/actions/runs/42301177592.
 
 These tests use a mock Core and mock ERC-3009 token; they do not establish end-to-end compatibility with a deployed EVVM instance or production readiness. This remains an unaudited reference PoC.
 
