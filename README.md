@@ -1,59 +1,86 @@
-# EVVM ERC-3009 Gasless Deposit — Reference Proposal
+# EVVM ERC-3009 Gasless Deposit PoC
 
-This is an independent proof of concept for an **optional gas-sponsored ERC-20 deposit path** in EVVM. It is not production-ready, audited, or an official EVVM implementation.
+An independent proof of concept exploring an optional **ERC-3009 gas-sponsored ERC-20 deposit path** for EVVM, with a user-authorized fee split between the executing Fisher and a protocol fee recipient.
 
-## Problem observed in the current code
+> **Status: experimental PoC.** This is not an official EVVM implementation, has not been audited, and is not production-ready. The tests use a mock Core and a mock ERC-3009 token.
 
-The current \`Treasury.deposit(token, amount)\` path uses \`transferFrom\` and then calls \`Core.addAmountToUser\`. For an ERC-20 deposit, a user normally needs to approve the Treasury and submit the deposit transaction, paying the host chain's gas token.
+## Concept
 
-The Core balance-credit function only accepts calls from the configured \`treasuryAddress\`. This means the proposal must be integrated into the configured Treasury (or accompanied by an intentional Core migration/authorization change); a sidecar Treasury cannot directly credit balances in an already initialized EVVM.
-
-## Proposed flow
-
-1. The user signs an ERC-3009 \`receiveWithAuthorization\` for \`depositAmount + feeAmount\`, with this Treasury as the recipient.
+1. A user signs an ERC-3009 `receiveWithAuthorization` for the net deposit plus a disclosed fee.
 2. An active Fisher submits the authorization and pays the host-chain gas.
-3. The Treasury credits \`depositAmount\` to the user's internal EVVM balance.
-4. The user-authorized fee is split between the Fisher and a protocol-fee recipient, both as internal EVVM balances.
-5. The ordinary deposit path remains available without this relayer fee.
+3. The Treasury credits the net deposit to the user's internal EVVM balance.
+4. The fee is credited internally to the Fisher and a configured protocol-fee recipient.
+5. The existing, user-paid deposit path remains available.
 
-This makes deposits possible without a prior ERC-20 approval or the user submitting a gas-paying transaction. The user still pays an explicit fee in the selected ERC-3009 token.
+The user does not need to submit the deposit transaction or hold the host chain's native gas token, but still pays the disclosed fee in the supported ERC-3009 token.
 
-## Why ERC-3009
+## Important architecture constraint
 
-\`receiveWithAuthorization\` is used because the token checks that the caller is the signed recipient. The Treasury itself calls the token, so the authorization is bound to the intended receiver.
+EVVM's `Core.addAmountToUser()` accepts balance credits only from the configured `treasuryAddress`. Therefore, this PoC is designed as a Treasury implementation for a new EVVM instance configured to use it. It cannot be deployed as an unrelated sidecar and credit balances in an already initialized instance without an intentional Core authorization or migration change.
 
-ERC-3009 signs \`from\`, \`to\`, \`value\`, validity bounds, and \`nonce\`, but it does not include EVVM-specific fields such as the net deposit, fee split, or selected Fisher. The PoC derives the ERC-3009 nonce from a structured hash containing chain ID, Treasury address, user, token, deposit amount, fee amount, optional executor, and user salt. This prevents a relayer from changing those values while reusing the signature.
+## Fee model
 
-## Fee model and important distinction
+- `protocolFeeBps` defines the protocol share of the user-authorized relayer fee.
+- The remaining fee is credited to the Fisher who executes the deposit.
+- Both fee shares are credited as internal EVVM balances in the deposited token.
+- This is separate from EVVM Core's existing `priorityFee` mechanism. It does not add a fee to every `Core.pay()` call.
+- The Fisher still needs liquidity and a path to convert or withdraw the received token to cover host-chain gas. Relayer quotes must account for gas volatility, conversion costs, and execution risk.
 
-\`protocolFeeBps\` is the protocol's share of the user-authorized relayer fee. The remainder is credited to the executing Fisher. This is separate from EVVM Core's existing \`priorityFee\` mechanism and does not add a fee to every \`Core.pay()\` call.
+## Security and scope assumptions
 
-The Fisher receives the relayer share in the deposited token as an EVVM internal balance. The Fisher still needs liquidity and a way to convert/withdraw that asset to the host chain's native gas token. The off-chain quote must cover expected gas, conversion costs, and a risk margin. A fee that is too low may not attract execution; a fee that is too high harms user adoption.
+- Only explicitly allowlisted ERC-3009 tokens are accepted.
+- The caller must be an active EVVM staker.
+- An optional executor binding can restrict the authorization to a specific Fisher.
+- EVVM-specific parameters are bound into a derived authorization nonce.
+- Exact token balance-delta checks reject fee-on-transfer behavior.
+- The conventional deposit path remains available.
+- The protocol fee recipient and fee split are immutable in this PoC; a production implementation would need carefully designed governance and timelock controls.
+- Only tokens with correct ERC-3009 semantics and reliable `balanceOf` behavior should be supported.
 
-## Scope and constraints
+## Project structure
 
-- Only explicitly allowlisted ERC-3009 tokens are supported.
-- Exact balance-delta checks reject fee-on-transfer behavior.
-- Only active EVVM stakers can execute the relayed deposit.
-- The normal deposit path is retained.
-- The configured Core Treasury restriction means a new deployment or an intentional migration is required.
-- EVVM's P2PSwap already has its own trading-fee model. This proposal does not duplicate or replace that fee.
-- The protocol fee recipient and split are immutable in this PoC; a production version should define governance and timelock controls.
-- Only tokens with correct ERC-3009 semantics and reliable \`balanceOf\` behavior should be supported.
+```text
+.
+├── src/
+│   └── EVVMERC3009Treasury.sol
+├── test/
+│   └── EVVMERC3009Treasury.t.sol
+├── foundry.toml
+├── ISSUE_DRAFT.md
+└── .github/
+    └── workflows/
+        └── tests.yml
+```
 
-## Test status
+## Run the tests
 
-The Foundry test suite is included in \`test/\` and runs through GitHub Actions. The latest CI run compiled with Solidity 0.8.24 and passed **5 tests (0 failed)**: fee split and replay protection, executor binding and amount-tampering resistance, non-staker rejection, unsupported-token rejection, and expired-authorization rejection. See the [CI run](https://github.com/0xSix9/evvm-erc3009-gasless-deposit-poc/actions).
+Install [Foundry](https://book.getfoundry.sh/getting-started/installation), then run:
 
-These tests use a **mock Core and mock ERC-3009 token**. They verify the PoC's isolated behavior, but do not prove end-to-end compatibility with a deployed EVVM instance, every ERC-3009 token, or production gas economics. Treat this as a reviewable, unaudited PoC—not production-ready code.
+```bash
+forge test -vvv
+```
 
-## Source references
+The GitHub Actions workflow runs the same Foundry test suite on pushes and pull requests targeting `main`.
 
-- [EVVM Treasury](https://github.com/EVVM-org/testnet-Contracts/blob/main/src/contracts/treasury/Treasury.sol)
-- [Core balance-credit restriction](https://github.com/EVVM-org/testnet-Contracts/blob/main/src/contracts/core/Core.sol)
-- [EVVM P2PSwap fee model](https://github.com/EVVM-org/testnet-Contracts/blob/main/src/contracts/p2pSwap/P2PSwap.sol)
-- [ERC-3009](https://eips.ethereum.org/EIPS/eip-3009)
+### Test coverage
+
+The current suite contains five tests:
+
+1. Fee split and replay-protection behavior.
+2. Executor binding and amount-tampering rejection.
+3. Rejection of callers who are not active stakers.
+4. Rejection of unsupported tokens.
+5. Rejection of expired authorizations.
+
+These are isolated unit tests against mocks. They do **not** establish end-to-end compatibility with a deployed EVVM instance, compatibility with every ERC-3009 token, production gas economics, or production security.
+
+## References
+
+- [EVVM testnet Treasury](https://github.com/EVVM-org/testnet-Contracts/blob/main/src/contracts/treasury/Treasury.sol)
+- [EVVM Core](https://github.com/EVVM-org/testnet-Contracts/blob/main/src/contracts/core/Core.sol)
+- [EVVM P2PSwap](https://github.com/EVVM-org/testnet-Contracts/blob/main/src/contracts/p2pSwap/P2PSwap.sol)
+- [ERC-3009 specification](https://eips.ethereum.org/EIPS/eip-3009)
 
 ## License
 
-This experiment is licensed under the EVVM Noncommercial License v1.0. See the adjacent \`LICENSE\` file and the [full EVVM license terms](https://www.evvm.org/docs/EVVMNoncommercialLicense). Commercial use requires a separate license from MATE Labs Inc.
+See [LICENSE](./LICENSE). This PoC uses the EVVM Noncommercial License v1.0 terms from the original experiment. Commercial use requires a separate license from MATE Labs Inc.
