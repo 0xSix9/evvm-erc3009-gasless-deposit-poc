@@ -45,13 +45,11 @@ EVVM's `Core.addAmountToUser()` accepts balance credits only from the configured
 │   └── EVVMERC3009Treasury.sol
 ├── test/
 │   └── EVVMERC3009Treasury.t.sol
-├── .github/
-│   └── workflows/
-│       └── evvm-erc3009-poc.yml
 ├── foundry.toml
 ├── ISSUE_DRAFT.md
-├── LICENSE
-└── .gitignore
+└── .github/
+    └── workflows/
+        └── evvm-erc3009-poc.yml
 ```
 
 ## Run the tests
@@ -62,17 +60,19 @@ Install [Foundry](https://book.getfoundry.sh/getting-started/installation), then
 forge test -vvv
 ```
 
-GitHub Actions runs the Foundry suite on pushes to `main`. The workflow can also be started manually from the Actions tab.
-
-**CI: PASS** The first run in this repository compiled with Solidity 0.8.24 and passed **5 tests, 0 failed**: [view GitHub Actions run](https://github.com/0xSix9/evvm-erc3009-gasless-deposit-poc/actions/runs/42301177592).
+GitHub Actions runs the same Foundry test suite on pushes and pull requests targeting `main`.
 
 ### Test coverage
+
+The current suite contains five tests:
 
 1. Fee split and replay-protection behavior.
 2. Executor binding and amount-tampering rejection.
 3. Rejection of callers who are not active stakers.
 4. Rejection of unsupported tokens.
 5. Rejection of expired authorizations.
+
+The latest verified run compiled with Solidity 0.8.24 and passed **5 tests (0 failed)**. See the [GitHub Actions run](https://github.com/0xSix9/evvm-erc3009-gasless-deposit-poc/actions/runs/42301177592).
 
 These are isolated unit tests against mocks. They do **not** establish end-to-end compatibility with a deployed EVVM instance, compatibility with every ERC-3009 token, production gas economics, or production security.
 
